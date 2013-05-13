@@ -43,29 +43,54 @@
 package de.flapdoodle.javaparser.parboiled;
 
 import org.parboiled.BaseParser;
+import org.parboiled.Node;
+import org.parboiled.Parboiled;
 import org.parboiled.Rule;
 import org.parboiled.annotations.*;
+import org.parboiled.parserunners.ReportingParseRunner;
+import org.parboiled.support.ParsingResult;
+import org.parboiled.support.Var;
+
+import de.flapdoodle.javaparser.tree.JavaPackage;
+import de.flapdoodle.javaparser.tree.Source;
 
 @SuppressWarnings({"InfiniteRecursion"})
-@BuildParseTree
+//@BuildParseTree
 public class JavaParser extends BaseParser<Object> {
+
+	public static ParsingResult<Source> parse(String source) {
+		JavaParser parser = Parboiled.createParser(JavaParser.class);
+		Rule rootRule = parser.CompilationUnit();
+		return new ReportingParseRunner<Source>(rootRule).run(source);
+	}
+	
+	protected <T> T as(Object ret,Class<T> type) {
+		if (type.isInstance(ret)) {
+//			System.out.println(">>>"+ret);
+			return (T) ret;
+		}
+		throw new IllegalArgumentException("Does not match " + type+" ("+ret+")");
+	}
+	
 
     //-------------------------------------------------------------------------
     //  Compilation Unit
     //-------------------------------------------------------------------------
 
     public Rule CompilationUnit() {
+    	Var<JavaPackage> javaPackage=new Var<JavaPackage>();
         return Sequence(
                 Spacing(),
-                Optional(PackageDeclaration()),
+                Optional(PackageDeclaration(javaPackage)),
                 ZeroOrMore(ImportDeclaration()),
                 ZeroOrMore(TypeDeclaration()),
-                EOI
+                EOI,push(new Source(com.google.common.base.Optional.fromNullable(javaPackage.get())))
         );
     }
 
-    Rule PackageDeclaration() {
-        return Sequence(ZeroOrMore(Annotation()), Sequence(PACKAGE, QualifiedIdentifier(), SEMI));
+    Rule PackageDeclaration(Var<JavaPackage> javaPackage) {
+    	Var<String> packageName=new Var<>();
+        return Sequence(ZeroOrMore(Annotation()), Sequence(PACKAGE, QualifiedIdentifier(), packageName.set(match()), SEMI),javaPackage.set(new JavaPackage(packageName.get())));
     }
 
     Rule ImportDeclaration() {
