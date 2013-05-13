@@ -23,6 +23,7 @@ public class TestSimpleExample {
 		Source source = parse(sourceText);
 		
 		assertFalse(source.javaPackage().isPresent());
+		assertTrue(source.imports().isEmpty());
 	}
 
 	@Test
@@ -45,6 +46,7 @@ public class TestSimpleExample {
 		Import wildcardImport = imports.get(0);
 		assertFalse(wildcardImport.isStatic());
 		assertEquals("some.other.*",wildcardImport.importDecl());
+		assertEquals("import some.other.*;",wildcardImport.marker().marked(sourceText));
 		
 		Import classImport = imports.get(1);
 		assertFalse(classImport.isStatic());
@@ -69,10 +71,9 @@ public class TestSimpleExample {
 				"}";
 		
 		Source source = parse(sourceText);
-		System.out.println(">"+source);
-		
 		assertTrue(source.javaPackage().isPresent());
 		assertEquals("myPackage",source.javaPackage().get().name());
+		assertEquals("package myPackage;\n",source.javaPackage().get().marker().marked(sourceText));
 	}
 	
 

@@ -8,13 +8,14 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 @Immutable
-public class Source {
+public class Source extends AbstractMarked {
 	
 	private final Optional<JavaPackage> _jpackage;
 	private final List<Import> _imports;
 
-	public Source(Optional<JavaPackage> jpackage, List<Import> imports) {
-		_jpackage = jpackage;
+	public Source(Marker marker, JavaPackage jpackage, List<Import> imports) {
+		super(marker);
+		_jpackage = Optional.fromNullable(jpackage);
 		_imports = ImmutableList.copyOf(imports);
 	}
 
@@ -25,5 +26,4 @@ public class Source {
 	public List<Import> imports() {
 		return _imports;
 	}
-	
 }

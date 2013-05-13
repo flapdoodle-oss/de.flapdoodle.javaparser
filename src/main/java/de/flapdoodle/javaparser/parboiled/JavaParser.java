@@ -56,6 +56,7 @@ import com.google.common.collect.Lists;
 
 import de.flapdoodle.javaparser.tree.Import;
 import de.flapdoodle.javaparser.tree.JavaPackage;
+import de.flapdoodle.javaparser.tree.Marker;
 import de.flapdoodle.javaparser.tree.Source;
 
 @SuppressWarnings({"InfiniteRecursion"})
@@ -84,6 +85,10 @@ public class JavaParser extends BaseParser<Object> {
 		throw new IllegalArgumentException("Does not match " + type+" ("+ret+")");
 	}
 	
+	protected Marker marker() {
+		return new Marker(getContext().getStartIndex(),currentIndex());
+	}
+	
 
     //-------------------------------------------------------------------------
     //  Compilation Unit
@@ -93,17 +98,17 @@ public class JavaParser extends BaseParser<Object> {
     	Var<JavaPackage> javaPackage=new Var<JavaPackage>();
     	CollectionVar<Import> imports=new CollectionVar<>();
         return Sequence(
-                Spacing(),
+        				Spacing(),
                 Optional(PackageDeclaration(javaPackage)),
                 ZeroOrMore(ImportDeclaration(imports)),
                 ZeroOrMore(TypeDeclaration()),
-                EOI,push(new Source(com.google.common.base.Optional.fromNullable(javaPackage.get()),imports.asList()))
+                EOI,push(new Source(marker(),javaPackage.get(),imports.asList()))
         );
     }
 
     Rule PackageDeclaration(Var<JavaPackage> javaPackage) {
     	Var<String> packageName=new Var<>();
-        return Sequence(ZeroOrMore(Annotation()), Sequence(PACKAGE, QualifiedIdentifier(), packageName.set(match()), SEMI),javaPackage.set(new JavaPackage(packageName.get())));
+        return Sequence(ZeroOrMore(Annotation()), Sequence(PACKAGE, QualifiedIdentifier(), packageName.set(match()), SEMI),javaPackage.set(new JavaPackage(marker(),packageName.get())));
     }
 
     Rule ImportDeclaration(CollectionVar<Import> imports) {
@@ -116,8 +121,8 @@ public class JavaParser extends BaseParser<Object> {
                 importDecl.append(match()),
                 Optional(DOT, STAR),
                 importDecl.append(match()),
-                imports.add(new Import(!"".equals(staticKey.get()),importDecl.get())),
-                SEMI
+                SEMI,
+                imports.add(new Import(marker(),!"".equals(staticKey.get()),importDecl.get()))
         );
     }
 
