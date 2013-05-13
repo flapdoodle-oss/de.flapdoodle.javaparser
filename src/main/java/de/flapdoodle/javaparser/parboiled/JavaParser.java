@@ -49,8 +49,12 @@ import org.parboiled.Rule;
 import org.parboiled.annotations.*;
 import org.parboiled.parserunners.ReportingParseRunner;
 import org.parboiled.support.ParsingResult;
+import org.parboiled.support.StringVar;
 import org.parboiled.support.Var;
 
+import com.google.common.collect.Lists;
+
+import de.flapdoodle.javaparser.tree.Import;
 import de.flapdoodle.javaparser.tree.JavaPackage;
 import de.flapdoodle.javaparser.tree.Source;
 
@@ -58,7 +62,15 @@ import de.flapdoodle.javaparser.tree.Source;
 //@BuildParseTree
 public class JavaParser extends BaseParser<Object> {
 
-	public static ParsingResult<Source> parse(String source) {
+	public static com.google.common.base.Optional<Source> asSource(String source) {
+		ParsingResult<Source> result = parse(source);
+		if (!result.hasErrors()) {
+			return com.google.common.base.Optional.of(result.resultValue);
+		}
+		return com.google.common.base.Optional.absent();
+	}
+	
+	private static ParsingResult<Source> parse(String source) {
 		JavaParser parser = Parboiled.createParser(JavaParser.class);
 		Rule rootRule = parser.CompilationUnit();
 		return new ReportingParseRunner<Source>(rootRule).run(source);
@@ -79,12 +91,13 @@ public class JavaParser extends BaseParser<Object> {
 
     public Rule CompilationUnit() {
     	Var<JavaPackage> javaPackage=new Var<JavaPackage>();
+    	CollectionVar<Import> imports=new CollectionVar<>();
         return Sequence(
                 Spacing(),
                 Optional(PackageDeclaration(javaPackage)),
-                ZeroOrMore(ImportDeclaration()),
+                ZeroOrMore(ImportDeclaration(imports)),
                 ZeroOrMore(TypeDeclaration()),
-                EOI,push(new Source(com.google.common.base.Optional.fromNullable(javaPackage.get())))
+                EOI,push(new Source(com.google.common.base.Optional.fromNullable(javaPackage.get()),imports.asList()))
         );
     }
 
@@ -93,12 +106,17 @@ public class JavaParser extends BaseParser<Object> {
         return Sequence(ZeroOrMore(Annotation()), Sequence(PACKAGE, QualifiedIdentifier(), packageName.set(match()), SEMI),javaPackage.set(new JavaPackage(packageName.get())));
     }
 
-    Rule ImportDeclaration() {
+    Rule ImportDeclaration(CollectionVar<Import> imports) {
+    	Var<String> staticKey=new Var<>();
+    	StringVar importDecl=new StringVar();
         return Sequence(
                 IMPORT,
-                Optional(STATIC),
+                Optional(STATIC),staticKey.set(match()),
                 QualifiedIdentifier(),
+                importDecl.append(match()),
                 Optional(DOT, STAR),
+                importDecl.append(match()),
+                imports.add(new Import(!"".equals(staticKey.get()),importDecl.get())),
                 SEMI
         );
     }
