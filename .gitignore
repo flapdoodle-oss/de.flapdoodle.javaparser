@@ -1,3 +1,13 @@
+target
+temp/
+velocity.log
+*~
+*.iml
+.classpath
+.project
+.settings
+.externalToolBuilders
+.idea
 *.class
 
 # Package Files #
