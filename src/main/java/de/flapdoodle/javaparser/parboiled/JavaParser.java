@@ -43,17 +43,18 @@
 package de.flapdoodle.javaparser.parboiled;
 
 import org.parboiled.BaseParser;
-import org.parboiled.Node;
 import org.parboiled.Parboiled;
 import org.parboiled.Rule;
-import org.parboiled.annotations.*;
+import org.parboiled.annotations.DontLabel;
+import org.parboiled.annotations.MemoMismatches;
+import org.parboiled.annotations.SuppressNode;
+import org.parboiled.annotations.SuppressSubnodes;
 import org.parboiled.parserunners.ReportingParseRunner;
 import org.parboiled.support.ParsingResult;
 import org.parboiled.support.StringVar;
 import org.parboiled.support.Var;
 
-import com.google.common.collect.Lists;
-
+import de.flapdoodle.javaparser.tree.AbstractType;
 import de.flapdoodle.javaparser.tree.Import;
 import de.flapdoodle.javaparser.tree.JavaPackage;
 import de.flapdoodle.javaparser.tree.Marker;
@@ -89,6 +90,10 @@ public class JavaParser extends BaseParser<Object> {
 		return new Marker(getContext().getStartIndex(),currentIndex());
 	}
 	
+	protected static boolean noMatch(boolean whatEver) {
+		return false;
+	}
+	
 
     //-------------------------------------------------------------------------
     //  Compilation Unit
@@ -97,12 +102,13 @@ public class JavaParser extends BaseParser<Object> {
     public Rule CompilationUnit() {
     	Var<JavaPackage> javaPackage=new Var<JavaPackage>();
     	CollectionVar<Import> imports=new CollectionVar<>();
+    	CollectionVar<AbstractType> types=new CollectionVar<>();
         return Sequence(
         				Spacing(),
                 Optional(PackageDeclaration(javaPackage)),
                 ZeroOrMore(ImportDeclaration(imports)),
-                ZeroOrMore(TypeDeclaration()),
-                EOI,push(new Source(marker(),javaPackage.get(),imports.asList()))
+                ZeroOrMore(TypeDeclaration(types)),
+                EOI,push(new Source(marker(),javaPackage.get(),imports.asList(),types.asList()))
         );
     }
 
@@ -126,17 +132,15 @@ public class JavaParser extends BaseParser<Object> {
         );
     }
 
-    Rule TypeDeclaration() {
+    Rule TypeDeclaration(CollectionVar<AbstractType> types) {
         return FirstOf(
-                Sequence(
-                        ZeroOrMore(Modifier()),
-                        FirstOf(
-                                ClassDeclaration(),
-                                EnumDeclaration(),
-                                InterfaceDeclaration(),
-                                AnnotationTypeDeclaration()
-                        )
-                ),
+                  FirstOf(
+                          ClassDeclaration(types),
+                          EnumDeclaration(types),
+                          InterfaceTypeDeclaration(types),
+                          AnnotationTypeDeclaration(types)
+                  )
+                ,
                 SEMI
         );
     }
@@ -145,14 +149,17 @@ public class JavaParser extends BaseParser<Object> {
     //  Class Declaration
     //-------------------------------------------------------------------------
 
-    Rule ClassDeclaration() {
-        return Sequence(
+    Rule ClassDeclaration(CollectionVar<AbstractType> types) {
+    	  return Sequence(
+        				ZeroOrMore(Modifier()),
                 CLASS,
                 Identifier(),
+                push(match()),
                 Optional(TypeParameters()),
                 Optional(EXTENDS, ClassType()),
                 Optional(IMPLEMENTS, ClassTypeList()),
-                ClassBody()
+                ClassBody(),
+                types.add(new de.flapdoodle.javaparser.tree.ClassType(marker(),as(pop(),String.class)))
         );
     }
 
@@ -169,16 +176,17 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule MemberDecl() {
+    	CollectionVar<AbstractType> dummyType=new CollectionVar<>();
         return FirstOf(
                 Sequence(TypeParameters(), GenericMethodOrConstructorRest()),
                 Sequence(Type(), Identifier(), MethodDeclaratorRest()),
                 Sequence(Type(), VariableDeclarators(), SEMI),
                 Sequence(VOID, Identifier(), VoidMethodDeclaratorRest()),
                 Sequence(Identifier(), ConstructorDeclaratorRest()),
-                InterfaceDeclaration(),
-                ClassDeclaration(),
-                EnumDeclaration(),
-                AnnotationTypeDeclaration()
+                InterfaceDeclaration(new Var<String>()),
+                ClassDeclaration(dummyType),
+                EnumDeclaration(dummyType),
+                AnnotationTypeDeclaration(dummyType)
         );
     }
 
@@ -218,10 +226,17 @@ public class JavaParser extends BaseParser<Object> {
     //  Interface Declaration
     //-------------------------------------------------------------------------
 
-    Rule InterfaceDeclaration() {
+    Rule InterfaceTypeDeclaration(CollectionVar<AbstractType> types) {
+    	Var<String> name=new Var<String>();
+    	return Sequence(ZeroOrMore(Modifier()), InterfaceDeclaration(name),
+          types.add(new de.flapdoodle.javaparser.tree.InterfaceType(marker(),name.get())));
+    }
+    
+    Rule InterfaceDeclaration(Var<String> name) {
         return Sequence(
                 INTERFACE,
                 Identifier(),
+                name.set(match()),
                 Optional(TypeParameters()),
                 Optional(EXTENDS, ClassTypeList()),
                 InterfaceBody()
@@ -240,14 +255,15 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule InterfaceMemberDecl() {
+    	CollectionVar<AbstractType> dummyType=new CollectionVar<>();
         return FirstOf(
                 InterfaceMethodOrFieldDecl(),
                 InterfaceGenericMethodDecl(),
                 Sequence(VOID, Identifier(), VoidInterfaceMethodDeclaratorsRest()),
-                InterfaceDeclaration(),
-                AnnotationTypeDeclaration(),
-                ClassDeclaration(),
-                EnumDeclaration()
+                InterfaceDeclaration(new Var<String>()),
+                AnnotationTypeDeclaration(dummyType),
+                ClassDeclaration(dummyType),
+                EnumDeclaration(dummyType)
         );
     }
 
@@ -295,12 +311,15 @@ public class JavaParser extends BaseParser<Object> {
     //  Enum Declaration
     //-------------------------------------------------------------------------
 
-    Rule EnumDeclaration() {
+    Rule EnumDeclaration(CollectionVar<AbstractType> types) {
         return Sequence(
+        				ZeroOrMore(Modifier()),
                 ENUM,
                 Identifier(),
+                push(match()),
                 Optional(IMPLEMENTS, ClassTypeList()),
-                EnumBody()
+                EnumBody(),
+                types.add(new de.flapdoodle.javaparser.tree.EnumType(marker(),as(pop(),String.class)))
         );
     }
 
@@ -387,9 +406,10 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule BlockStatement() {
+    	CollectionVar<AbstractType> dummyType=new CollectionVar<>();
         return FirstOf(
                 LocalVariableDeclarationStatement(),
-                Sequence(ZeroOrMore(Modifier()), FirstOf(ClassDeclaration(), EnumDeclaration())),
+                Sequence(ZeroOrMore(Modifier()), FirstOf(ClassDeclaration(dummyType), EnumDeclaration(dummyType))),
                 Statement()
         );
     }
@@ -808,8 +828,8 @@ public class JavaParser extends BaseParser<Object> {
     //  Annotations
     //-------------------------------------------------------------------------    
 
-    Rule AnnotationTypeDeclaration() {
-        return Sequence(AT, INTERFACE, Identifier(), AnnotationTypeBody());
+    Rule AnnotationTypeDeclaration(CollectionVar<AbstractType> types) {
+        return Sequence(ZeroOrMore(Modifier()), AT, INTERFACE, Identifier(),push(match()), AnnotationTypeBody(),types.add(new de.flapdoodle.javaparser.tree.AnnotationType(marker(),as(pop(),String.class))));
     }
 
     Rule AnnotationTypeBody() {
@@ -824,12 +844,13 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule AnnotationTypeElementRest() {
+    	CollectionVar<AbstractType> dummyType=new CollectionVar<>();
         return FirstOf(
                 Sequence(Type(), AnnotationMethodOrConstantRest(), SEMI),
-                ClassDeclaration(),
-                EnumDeclaration(),
-                InterfaceDeclaration(),
-                AnnotationTypeDeclaration()
+                ClassDeclaration(dummyType),
+                EnumDeclaration(dummyType),
+                InterfaceDeclaration(new Var<String>()),
+                AnnotationTypeDeclaration(dummyType)
         );
     }
 

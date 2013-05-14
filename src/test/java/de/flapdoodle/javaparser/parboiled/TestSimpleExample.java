@@ -7,24 +7,13 @@ import static org.junit.Assert.assertTrue;
 import java.util.List;
 
 import org.junit.Test;
-import org.parboiled.support.ParsingResult;
 
 import com.google.common.base.Optional;
 
 import de.flapdoodle.javaparser.tree.Import;
 import de.flapdoodle.javaparser.tree.Source;
 
-public class TestSimpleExample {
-
-	@Test
-	public void withoutPackage() {
-		String sourceText="public class AClass {}";
-		
-		Source source = parse(sourceText);
-		
-		assertFalse(source.javaPackage().isPresent());
-		assertTrue(source.imports().isEmpty());
-	}
+public class TestSimpleExample extends AbstractJavaParserTest {
 
 	@Test
 	public void withImports() {
@@ -56,7 +45,7 @@ public class TestSimpleExample {
 		assertTrue(staticImport.isStatic());
 		assertEquals("some.other.Class.method",staticImport.importDecl());
 	}
-	
+
 	@Test
 	public void simpleExample() {
 		String sourceText="package myPackage;\n" +
@@ -68,20 +57,12 @@ public class TestSimpleExample {
 				"	public String add(int idx) {\n" +
 				" 	return \"\";\n" +
 				"	}\n" +
-				"}";
+				"};";
 		
 		Source source = parse(sourceText);
 		assertTrue(source.javaPackage().isPresent());
 		assertEquals("myPackage",source.javaPackage().get().name());
 		assertEquals("package myPackage;\n",source.javaPackage().get().marker().marked(sourceText));
-	}
-	
-
-	private Source parse(String sourceText) {
-		Optional<Source> result = JavaParser.asSource(sourceText);
-		assertTrue(result.isPresent());
-		Source source = result.get();
-		return source;
 	}
 	
 }
