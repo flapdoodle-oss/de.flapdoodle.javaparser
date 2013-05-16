@@ -225,13 +225,13 @@ public class JavaParser extends BaseParser<Object> {
     }
 
 		Rule VoidMethodDecl(CollectionVar<MethodDeclaration> methodDeclarations) {
-			Var<AbstractParameter> parameters=new Var<>();
+			Var<AbstractParameter> parameters=new Var<AbstractParameter>(new EmptyParameter());
 			Var<String> id=new Var<>();
 			return Sequence(ZeroOrMore(Modifier()), VOID, Identifier(), id.set(match()), VoidMethodDeclaratorRest(parameters),methodDeclarations.add(new MethodDeclaration(marker(),id.get(),parameters.get().asParameterList())));
 		}
 
 		Rule MethodDecl(CollectionVar<MethodDeclaration> methodDeclarations) {
-			Var<AbstractParameter> parameters=new Var<>();
+			Var<AbstractParameter> parameters=new Var<AbstractParameter>(new EmptyParameter());
 			Var<String> id=new Var<>();
 			return Sequence(ZeroOrMore(Modifier()), Type(), Identifier(), id.set(match()), MethodDeclaratorRest(parameters),methodDeclarations.add(new MethodDeclaration(marker(),id.get(),parameters.get().asParameterList())));
 		}

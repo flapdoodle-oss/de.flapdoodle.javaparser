@@ -36,6 +36,26 @@
 		https://docs.sonatype.org/display/Repository/Sonatype+OSS+Maven+Repository+Usage+Guide 
 		https://docs.sonatype.org/display/Repository/How+To+Generate+PGP+Signatures+With+Maven -->
 	<build>
+		<testResources>
+			<testResource>
+				<filtering>false</filtering>
+				<directory>src/test/resources</directory>
+			</testResource>
+			<testResource>
+				<filtering>false</filtering>
+				<directory>src/test/java</directory>
+				<includes>
+					<include>**</include>
+				</includes>
+				<!--
+				<excludes>
+					<exclude>**/*.java</exclude>
+				</excludes>
+				-->
+			</testResource>
+		</testResources>
+	
+	
 		<plugins>
 
 			<plugin>
