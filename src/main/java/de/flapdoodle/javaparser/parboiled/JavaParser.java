@@ -78,6 +78,9 @@ import sun.awt.SubRegionShowable;
 
 import com.google.common.collect.Lists;
 
+import de.flapdoodle.javaparser.parboiled.helper.AbstractParameter;
+import de.flapdoodle.javaparser.parboiled.helper.EmptyParameter;
+import de.flapdoodle.javaparser.parboiled.helper.ParameterWithChild;
 import de.flapdoodle.javaparser.tree.AbstractType;
 import de.flapdoodle.javaparser.tree.Import;
 import de.flapdoodle.javaparser.tree.JavaPackage;
@@ -177,16 +180,17 @@ public class JavaParser extends BaseParser<Object> {
 
     Rule ClassDeclaration(CollectionVar<AbstractType> types) {
     	CollectionVar<MemberDeclaration> subTypes=new CollectionVar<>();
+    	Var<String> id=new Var<>();
     	  return Sequence(
         				ZeroOrMore(Modifier()),
                 CLASS,
                 Identifier(),
-                push(match()),
+                id.set(match()),
                 Optional(TypeParameters()),
                 Optional(EXTENDS, ClassType()),
                 Optional(IMPLEMENTS, ClassTypeList()),
                 ClassBody(subTypes),
-                types.add(new de.flapdoodle.javaparser.tree.ClassType(marker(),as(pop(),String.class),subTypes.asList()))
+                types.add(new de.flapdoodle.javaparser.tree.ClassType(marker(),id.get(),subTypes.asList()))
         );
     }
 
@@ -221,11 +225,15 @@ public class JavaParser extends BaseParser<Object> {
     }
 
 		Rule VoidMethodDecl(CollectionVar<MethodDeclaration> methodDeclarations) {
-			return Sequence(ZeroOrMore(Modifier()), VOID, Identifier(), push(match()), VoidMethodDeclaratorRest(),methodDeclarations.add(new MethodDeclaration(marker(),as(pop(),String.class))));
+			Var<AbstractParameter> parameters=new Var<>();
+			Var<String> id=new Var<>();
+			return Sequence(ZeroOrMore(Modifier()), VOID, Identifier(), id.set(match()), VoidMethodDeclaratorRest(parameters),methodDeclarations.add(new MethodDeclaration(marker(),id.get(),parameters.get().asParameterList())));
 		}
 
 		Rule MethodDecl(CollectionVar<MethodDeclaration> methodDeclarations) {
-			return Sequence(ZeroOrMore(Modifier()), Type(), Identifier(), push(match()), MethodDeclaratorRest(),methodDeclarations.add(new MethodDeclaration(marker(),as(pop(),String.class))));
+			Var<AbstractParameter> parameters=new Var<>();
+			Var<String> id=new Var<>();
+			return Sequence(ZeroOrMore(Modifier()), Type(), Identifier(), id.set(match()), MethodDeclaratorRest(parameters),methodDeclarations.add(new MethodDeclaration(marker(),id.get(),parameters.get().asParameterList())));
 		}
 
     Rule GenericMethodOrConstructorRest() {
@@ -236,17 +244,21 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule MethodDeclaratorRest() {
+    	return MethodDeclaratorRest(new Var<AbstractParameter>());
+    }
+    
+    Rule MethodDeclaratorRest(Var<AbstractParameter> parameters) {
         return Sequence(
-                FormalParameters(),
+                FormalParameters(parameters),
                 ZeroOrMore(Dim()),
                 Optional(THROWS, ClassTypeList()),
                 FirstOf(MethodBody(), SEMI)
         );
     }
 
-    Rule VoidMethodDeclaratorRest() {
+    Rule VoidMethodDeclaratorRest(Var<AbstractParameter> parameters) {
         return Sequence(
-                FormalParameters(),
+                FormalParameters(parameters),
                 Optional(THROWS, ClassTypeList()),
                 FirstOf(MethodBody(), SEMI)
         );
@@ -417,7 +429,11 @@ public class JavaParser extends BaseParser<Object> {
     //-------------------------------------------------------------------------
 
     Rule FormalParameters() {
-        return Sequence(LPAR, Optional(FormalParameterDecls()), RPAR);
+    	return FormalParameters(new Var<AbstractParameter>());
+    }
+    
+    Rule FormalParameters(Var<AbstractParameter> parameter) {
+        return Sequence(LPAR, Optional(FormalParameterDecls(),parameter.set(as(pop(),AbstractParameter.class))), RPAR);
     }
 
     Rule FormalParameter() {
@@ -425,13 +441,17 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule FormalParameterDecls() {
-        return Sequence(ZeroOrMore(FirstOf(FINAL, Annotation())), Type(), FormalParameterDeclsRest());
+    	
+        return Sequence(ZeroOrMore(FirstOf(FINAL, Annotation())), Type(), FormalParameterDeclsRest(),push(new ParameterWithChild(as(pop(),AbstractParameter.class))));
     }
 
     Rule FormalParameterDeclsRest() {
-        return FirstOf(
-                Sequence(VariableDeclaratorId(), Optional(COMMA, FormalParameterDecls())),
-                Sequence(ELLIPSIS, VariableDeclaratorId())
+    	Var<AbstractParameter> toPush=new Var<AbstractParameter>(new EmptyParameter());
+        return Sequence(
+        				FirstOf(
+                Sequence(VariableDeclaratorId(), Optional(COMMA, FormalParameterDecls(),toPush.set(as(pop(),AbstractParameter.class)))),
+                Sequence(ELLIPSIS, VariableDeclaratorId())),
+                push(toPush.get())
         );
     }
 

@@ -125,7 +125,7 @@ public class JavaParserLanguageFeaturesTest extends AbstractJavaParserTest {
 
 	@Test
 	public void classWithMethod() {
-		String sourceText="public class Top { public void fun (){ System.exit(0); } }";
+		String sourceText="public class Top { public void fun (List<String> entries,boolean flag){ System.exit(0); } }";
 		
 		Source source = parse(sourceText);
 		
@@ -133,13 +133,14 @@ public class JavaParserLanguageFeaturesTest extends AbstractJavaParserTest {
 		assertTrue(source.imports().isEmpty());
 		assertEquals(1,source.types().size());
 		ClassType type = (ClassType) source.types().get(0);
-		assertEquals("public class Top { public void fun (){ System.exit(0); } }",type.marker().marked(sourceText));
+		assertEquals("public class Top { public void fun (List<String> entries,boolean flag){ System.exit(0); } }",type.marker().marked(sourceText));
 		assertEquals(1,type.memberDeclarations().size());
 		List<MethodDeclaration> methods = type.memberDeclarations().get(0).methods();
 		assertEquals(1,methods.size());
 		MethodDeclaration method = methods.get(0);
-		assertEquals("public void fun (){ System.exit(0); } ",method.marker().marked(sourceText));
+		assertEquals("public void fun (List<String> entries,boolean flag){ System.exit(0); } ",method.marker().marked(sourceText));
 		assertEquals("fun",method.name());
+		assertEquals(2,method.parameters().size());
 	}
 
 }
