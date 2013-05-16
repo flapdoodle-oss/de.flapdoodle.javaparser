@@ -61,6 +61,7 @@
 
 package de.flapdoodle.javaparser.parboiled;
 
+import org.parboiled.Action;
 import org.parboiled.BaseParser;
 import org.parboiled.Parboiled;
 import org.parboiled.Rule;
@@ -82,6 +83,7 @@ import de.flapdoodle.javaparser.tree.Import;
 import de.flapdoodle.javaparser.tree.JavaPackage;
 import de.flapdoodle.javaparser.tree.Marker;
 import de.flapdoodle.javaparser.tree.MemberDeclaration;
+import de.flapdoodle.javaparser.tree.MethodDeclaration;
 import de.flapdoodle.javaparser.tree.Source;
 
 @SuppressWarnings({"InfiniteRecursion"})
@@ -196,26 +198,35 @@ public class JavaParser extends BaseParser<Object> {
         return FirstOf(
                 SEMI,
                 Sequence(Optional(STATIC), Block()),
-                Sequence(ZeroOrMore(Modifier()), MemberDecl(),memberDecls.add(as(pop(),MemberDeclaration.class)))
+                Sequence(MemberDecl(),memberDecls.add(as(pop(),MemberDeclaration.class)))
         );
     }
 
     Rule MemberDecl() {
     	CollectionVar<AbstractType> subTypes=new CollectionVar<>();
+    	CollectionVar<MethodDeclaration> methodDeclarations=new CollectionVar<>();
         return Sequence(
         				FirstOf(
-                Sequence(TypeParameters(), GenericMethodOrConstructorRest()),
-                Sequence(Type(), Identifier(), MethodDeclaratorRest()),
-                Sequence(Type(), VariableDeclarators(), SEMI),
-                Sequence(VOID, Identifier(), VoidMethodDeclaratorRest()),
-                Sequence(Identifier(), ConstructorDeclaratorRest()),
-                InterfaceDeclaration(new Var<String>()),
+                Sequence(ZeroOrMore(Modifier()), TypeParameters(), GenericMethodOrConstructorRest()),
+                MethodDecl(methodDeclarations),
+                Sequence(ZeroOrMore(Modifier()), Type(), VariableDeclarators(), SEMI),
+                VoidMethodDecl(methodDeclarations),
+                Sequence(ZeroOrMore(Modifier()), Identifier(), ConstructorDeclaratorRest()),
+                InterfaceDeclarationWithModifier(new Var<String>()),
                 ClassDeclaration(subTypes),
                 EnumDeclaration(subTypes),
                 AnnotationTypeDeclaration(subTypes)),
-                push(new MemberDeclaration(marker(),subTypes.asList()))
+                push(new MemberDeclaration(marker(),subTypes.asList(),methodDeclarations.asList()))
         );
     }
+
+		Rule VoidMethodDecl(CollectionVar<MethodDeclaration> methodDeclarations) {
+			return Sequence(ZeroOrMore(Modifier()), VOID, Identifier(), push(match()), VoidMethodDeclaratorRest(),methodDeclarations.add(new MethodDeclaration(marker(),as(pop(),String.class))));
+		}
+
+		Rule MethodDecl(CollectionVar<MethodDeclaration> methodDeclarations) {
+			return Sequence(ZeroOrMore(Modifier()), Type(), Identifier(), push(match()), MethodDeclaratorRest(),methodDeclarations.add(new MethodDeclaration(marker(),as(pop(),String.class))));
+		}
 
     Rule GenericMethodOrConstructorRest() {
         return FirstOf(
@@ -257,6 +268,10 @@ public class JavaParser extends BaseParser<Object> {
     	Var<String> name=new Var<String>();
     	return Sequence(ZeroOrMore(Modifier()), InterfaceDeclaration(name),
           types.add(new de.flapdoodle.javaparser.tree.InterfaceType(marker(),name.get())));
+    }
+    
+    Rule InterfaceDeclarationWithModifier(Var<String> name) {
+    	return Sequence(ZeroOrMore(Modifier()), InterfaceDeclaration(name));
     }
     
     Rule InterfaceDeclaration(Var<String> name) {
