@@ -27,8 +27,10 @@ import de.flapdoodle.javaparser.tree.Parameter;
 public class ParameterWithChild extends AbstractParameter {
 
 	private final AbstractParameter _child;
+	private final String _typeAsString;
 
-	public ParameterWithChild(AbstractParameter child) {
+	public ParameterWithChild(String typeAsString, AbstractParameter child) {
+		_typeAsString = typeAsString;
 		_child = child;
 	}
 
@@ -39,6 +41,6 @@ public class ParameterWithChild extends AbstractParameter {
 	
 	@Override
 	protected Optional<Parameter> asParameter() {
-		return Optional.of(new Parameter());
+		return Optional.of(new Parameter(_typeAsString));
 	}
 }

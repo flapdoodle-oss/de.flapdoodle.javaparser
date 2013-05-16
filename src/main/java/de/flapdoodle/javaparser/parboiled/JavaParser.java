@@ -441,8 +441,8 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule FormalParameterDecls() {
-    	
-        return Sequence(ZeroOrMore(FirstOf(FINAL, Annotation())), Type(), FormalParameterDeclsRest(),push(new ParameterWithChild(as(pop(),AbstractParameter.class))));
+    	Var<String> typeAsString=new Var<>();
+        return Sequence(ZeroOrMore(FirstOf(FINAL, Annotation())), Type(),typeAsString.set(match()), FormalParameterDeclsRest(),push(new ParameterWithChild(typeAsString.get(), as(pop(),AbstractParameter.class))));
     }
 
     Rule FormalParameterDeclsRest() {

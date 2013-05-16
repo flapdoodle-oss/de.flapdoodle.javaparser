@@ -22,4 +22,14 @@ package de.flapdoodle.javaparser.tree;
 
 public class Parameter {
 
+	private final String _typeAsString;
+
+	public Parameter(String typeAsString) {
+		_typeAsString = typeAsString.trim();
+	}
+	
+	public String typeAsString() {
+		return _typeAsString;
+	}
+
 }

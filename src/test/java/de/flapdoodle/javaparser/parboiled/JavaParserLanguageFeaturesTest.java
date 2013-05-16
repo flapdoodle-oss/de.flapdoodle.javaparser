@@ -141,6 +141,8 @@ public class JavaParserLanguageFeaturesTest extends AbstractJavaParserTest {
 		assertEquals("public void fun (List<String> entries,boolean flag){ System.exit(0); } ",method.marker().marked(sourceText));
 		assertEquals("fun",method.name());
 		assertEquals(2,method.parameters().size());
+		assertEquals("List<String>",method.parameters().get(0).typeAsString());
+		assertEquals("boolean",method.parameters().get(1).typeAsString());
 	}
 
 }
