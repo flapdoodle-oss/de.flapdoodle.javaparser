@@ -44,5 +44,4 @@ public class CollectionVar<T> extends Var<Collection<T>> {
 		}
 		return ImmutableList.of();
 	}
-
 }

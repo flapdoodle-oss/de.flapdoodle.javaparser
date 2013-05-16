@@ -19,10 +19,13 @@
  */
 package de.flapdoodle.javaparser.tree;
 
+import java.util.ArrayList;
+import java.util.List;
+
 
 public class EnumType extends AbstractType {
 
-	public EnumType(Marker marker, String name) {
+	public EnumType(Marker marker, String name, ArrayList<MemberDeclaration> memberDeclarations) {
 		super(marker,name);
 	}
 

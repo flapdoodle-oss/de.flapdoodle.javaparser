@@ -73,10 +73,15 @@ import org.parboiled.support.ParsingResult;
 import org.parboiled.support.StringVar;
 import org.parboiled.support.Var;
 
+import sun.awt.SubRegionShowable;
+
+import com.google.common.collect.Lists;
+
 import de.flapdoodle.javaparser.tree.AbstractType;
 import de.flapdoodle.javaparser.tree.Import;
 import de.flapdoodle.javaparser.tree.JavaPackage;
 import de.flapdoodle.javaparser.tree.Marker;
+import de.flapdoodle.javaparser.tree.MemberDeclaration;
 import de.flapdoodle.javaparser.tree.Source;
 
 @SuppressWarnings({"InfiniteRecursion"})
@@ -169,6 +174,7 @@ public class JavaParser extends BaseParser<Object> {
     //-------------------------------------------------------------------------
 
     Rule ClassDeclaration(CollectionVar<AbstractType> types) {
+    	CollectionVar<MemberDeclaration> subTypes=new CollectionVar<>();
     	  return Sequence(
         				ZeroOrMore(Modifier()),
                 CLASS,
@@ -177,35 +183,37 @@ public class JavaParser extends BaseParser<Object> {
                 Optional(TypeParameters()),
                 Optional(EXTENDS, ClassType()),
                 Optional(IMPLEMENTS, ClassTypeList()),
-                ClassBody(),
-                types.add(new de.flapdoodle.javaparser.tree.ClassType(marker(),as(pop(),String.class)))
+                ClassBody(subTypes),
+                types.add(new de.flapdoodle.javaparser.tree.ClassType(marker(),as(pop(),String.class),subTypes.asList()))
         );
     }
 
-    Rule ClassBody() {
-        return Sequence(LWING, ZeroOrMore(ClassBodyDeclaration()), RWING);
+    Rule ClassBody(CollectionVar<MemberDeclaration> memberDecls) {
+        return Sequence(LWING, ZeroOrMore(ClassBodyDeclaration(memberDecls)), RWING);
     }
 
-    Rule ClassBodyDeclaration() {
+    Rule ClassBodyDeclaration(CollectionVar<MemberDeclaration> memberDecls) {
         return FirstOf(
                 SEMI,
                 Sequence(Optional(STATIC), Block()),
-                Sequence(ZeroOrMore(Modifier()), MemberDecl())
+                Sequence(ZeroOrMore(Modifier()), MemberDecl(),memberDecls.add(as(pop(),MemberDeclaration.class)))
         );
     }
 
     Rule MemberDecl() {
-    	CollectionVar<AbstractType> dummyType=new CollectionVar<>();
-        return FirstOf(
+    	CollectionVar<AbstractType> subTypes=new CollectionVar<>();
+        return Sequence(
+        				FirstOf(
                 Sequence(TypeParameters(), GenericMethodOrConstructorRest()),
                 Sequence(Type(), Identifier(), MethodDeclaratorRest()),
                 Sequence(Type(), VariableDeclarators(), SEMI),
                 Sequence(VOID, Identifier(), VoidMethodDeclaratorRest()),
                 Sequence(Identifier(), ConstructorDeclaratorRest()),
                 InterfaceDeclaration(new Var<String>()),
-                ClassDeclaration(dummyType),
-                EnumDeclaration(dummyType),
-                AnnotationTypeDeclaration(dummyType)
+                ClassDeclaration(subTypes),
+                EnumDeclaration(subTypes),
+                AnnotationTypeDeclaration(subTypes)),
+                push(new MemberDeclaration(marker(),subTypes.asList()))
         );
     }
 
@@ -338,7 +346,7 @@ public class JavaParser extends BaseParser<Object> {
                 push(match()),
                 Optional(IMPLEMENTS, ClassTypeList()),
                 EnumBody(),
-                types.add(new de.flapdoodle.javaparser.tree.EnumType(marker(),as(pop(),String.class)))
+                types.add(new de.flapdoodle.javaparser.tree.EnumType(marker(),as(pop(),String.class),Lists.<MemberDeclaration>newArrayList()))
         );
     }
 
@@ -357,16 +365,20 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule EnumConstant() {
+    	// TODO can we address enum const sub types
+    	CollectionVar<MemberDeclaration> enumConstMemberDecls=new CollectionVar<>();
         return Sequence(
                 ZeroOrMore(Annotation()),
                 Identifier(),
                 Optional(Arguments()),
-                Optional(ClassBody())
+                Optional(ClassBody(enumConstMemberDecls))
         );
     }
 
     Rule EnumBodyDeclarations() {
-        return Sequence(SEMI, ZeroOrMore(ClassBodyDeclaration()));
+    	// TODO whats enum body type declarations?
+        CollectionVar<MemberDeclaration> enumBodyMemberDecl=new CollectionVar<>();
+				return Sequence(SEMI, ZeroOrMore(ClassBodyDeclaration(enumBodyMemberDecl)));
     }
 
     //-------------------------------------------------------------------------
@@ -744,7 +756,8 @@ public class JavaParser extends BaseParser<Object> {
     }
 
     Rule ClassCreatorRest() {
-        return Sequence(Arguments(), Optional(ClassBody()));
+    	// TODO we ignore anon method level class def
+        return Sequence(Arguments(), Optional(ClassBody(new CollectionVar<MemberDeclaration>())));
     }
 
     Rule ArrayInitializer() {

@@ -104,5 +104,21 @@ public class JavaParserLanguageFeaturesTest extends AbstractJavaParserTest {
 		assertEquals("public @interface AClass {}",type.marker().marked(sourceText));
 	}
 
+	@Test
+	public void innerClass() {
+		String sourceText="public class Top { class Inner {} }";
+		
+		Source source = parse(sourceText);
+		
+		assertFalse(source.javaPackage().isPresent());
+		assertTrue(source.imports().isEmpty());
+		assertEquals(1,source.types().size());
+		ClassType type = (ClassType) source.types().get(0);
+		assertEquals("public class Top { class Inner {} }",type.marker().marked(sourceText));
+		assertEquals(1,type.memberDeclarations().size());
+		ClassType subtype = (ClassType) type.memberDeclarations().get(0).types().get(0);
+		assertEquals("class Inner {} ",subtype.marker().marked(sourceText));
+	}
+
 
 }

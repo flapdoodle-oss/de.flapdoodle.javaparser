@@ -19,11 +19,19 @@
  */
 package de.flapdoodle.javaparser.tree;
 
+import java.util.List;
+
 
 public class ClassType extends AbstractType {
 
-	public ClassType(Marker marker, String name) {
+	private final List<MemberDeclaration> _memberDeclarations;
+
+	public ClassType(Marker marker, String name, List<MemberDeclaration> memberDeclarations) {
 		super(marker,name);
+		_memberDeclarations = memberDeclarations;
 	}
 
+	public List<MemberDeclaration> memberDeclarations() {
+		return _memberDeclarations;
+	}
 }
